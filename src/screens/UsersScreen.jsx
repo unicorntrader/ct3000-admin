@@ -1,0 +1,180 @@
+import React, { useState, useEffect, useMemo } from 'react'
+import { supabase } from '../lib/supabaseClient'
+import { Search, RefreshCw, ExternalLink } from 'lucide-react'
+import UserDetailPanel from './UserDetailPanel'
+
+const STATUS_FILTERS = ['all', 'trialing', 'active', 'canceled', 'pending', 'none']
+
+const statusBadge = (status) => {
+  const styles = {
+    active:   'bg-green-50 text-green-700',
+    trialing: 'bg-amber-50 text-amber-700',
+    canceled: 'bg-red-50 text-red-600',
+    pending:  'bg-gray-100 text-gray-500',
+    none:     'bg-gray-100 text-gray-400',
+  }
+  return (
+    <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${styles[status] || 'bg-gray-100 text-gray-400'}`}>
+      {status || 'none'}
+    </span>
+  )
+}
+
+const fmtDate = (iso) => {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+export default function UsersScreen() {
+  const [users, setUsers] = useState([])
+  const [subsMap, setSubsMap] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [selectedUser, setSelectedUser] = useState(null)
+
+  useEffect(() => { fetchData() }, [])
+
+  const fetchData = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const { data: { users: authUsers }, error: usersErr } = await supabase.auth.admin.listUsers({ perPage: 1000 })
+      if (usersErr) throw usersErr
+
+      const { data: subs, error: subsErr } = await supabase.from('user_subscriptions').select('*')
+      if (subsErr) throw subsErr
+
+      const map = {}
+      for (const s of (subs || [])) map[s.user_id] = s
+      setSubsMap(map)
+      setUsers(authUsers || [])
+    } catch (err) {
+      setError(err.message)
+    }
+    setLoading(false)
+  }
+
+  const filtered = useMemo(() => {
+    return users.filter(u => {
+      const sub = subsMap[u.id]
+      const status = sub?.subscription_status || 'none'
+      if (statusFilter !== 'all' && status !== statusFilter) return false
+      if (search && !u.email?.toLowerCase().includes(search.toLowerCase())) return false
+      return true
+    }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  }, [users, subsMap, search, statusFilter])
+
+  const handleUserUpdated = () => {
+    fetchData()
+    setSelectedUser(null)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-sm text-red-700">Error: {error}</div>
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-semibold text-gray-900">Users <span className="text-gray-400 font-normal text-base ml-1">({filtered.length})</span></h1>
+        <button onClick={fetchData} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+          <RefreshCw className="w-3.5 h-3.5" />
+          Refresh
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by email…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          {STATUS_FILTERS.map(f => (
+            <button
+              key={f}
+              onClick={() => setStatusFilter(f)}
+              className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                statusFilter === f
+                  ? 'bg-blue-600 text-white border-transparent'
+                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              {['Email', 'Joined', 'Status', 'Trial ends', 'Period ends', 'Stripe ID', ''].map(h => (
+                <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">No users found</td>
+              </tr>
+            ) : filtered.map(u => {
+              const sub = subsMap[u.id]
+              return (
+                <tr
+                  key={u.id}
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => setSelectedUser({ user: u, sub })}
+                >
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{u.email}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{fmtDate(u.created_at)}</td>
+                  <td className="px-4 py-3">{statusBadge(sub?.subscription_status)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{fmtDate(sub?.trial_ends_at)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{fmtDate(sub?.current_period_ends_at)}</td>
+                  <td className="px-4 py-3 text-xs text-gray-400 font-mono">
+                    {sub?.stripe_customer_id ? (
+                      <span className="flex items-center gap-1">
+                        {sub.stripe_customer_id.slice(-8)}
+                        <ExternalLink className="w-3 h-3" />
+                      </span>
+                    ) : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-blue-600 font-medium">View →</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* User detail panel */}
+      {selectedUser && (
+        <UserDetailPanel
+          user={selectedUser.user}
+          sub={selectedUser.sub}
+          onClose={() => setSelectedUser(null)}
+          onUpdated={handleUserUpdated}
+        />
+      )}
+    </div>
+  )
+}
