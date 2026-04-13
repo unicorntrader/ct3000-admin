@@ -19,7 +19,7 @@ module.exports = async function handler(req, res) {
   try {
     const token = createGhostJWT(adminKey)
     const response = await fetch(
-      'https://philoinvestor.com/ghost/api/admin/members/?filter=status:paid&limit=all',
+      'https://philoinvestor.ghost.io/ghost/api/admin/members/?filter=status:paid&limit=all',
       { headers: { Authorization: `Ghost ${token}` } }
     )
     if (!response.ok) {
