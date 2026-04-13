@@ -4,26 +4,6 @@ import { RefreshCw, Gift, CheckCircle, UserX } from 'lucide-react'
 
 const FOREVER_DATE = '2099-01-01T00:00:00.000Z'
 
-async function createGhostJWT(adminKey) {
-  const [id, secret] = adminKey.split(':')
-  const now = Math.floor(Date.now() / 1000)
-  const header = { alg: 'HS256', kid: id, typ: 'JWT' }
-  const payload = { iat: now, exp: now + 300, aud: '/admin/' }
-  const b64url = (obj) =>
-    btoa(JSON.stringify(obj)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
-  const headerEnc = b64url(header)
-  const payloadEnc = b64url(payload)
-  const message = `${headerEnc}.${payloadEnc}`
-  const keyBytes = new Uint8Array(secret.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-  )
-  const sig = await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(message))
-  const sigEnc = btoa(String.fromCharCode(...new Uint8Array(sig)))
-    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
-  return `${message}.${sigEnc}`
-}
-
 const fmtDate = (iso) => {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -48,15 +28,11 @@ export default function PhiloinvestorScreen() {
     setLoading(true)
     setError(null)
     try {
-      const adminKey = process.env.REACT_APP_GHOST_ADMIN_KEY
-      if (!adminKey) throw new Error('REACT_APP_GHOST_ADMIN_KEY not set')
-
-      const token = await createGhostJWT(adminKey)
-      const res = await fetch(
-        'https://philoinvestor.com/ghost/api/admin/members/?filter=status:paid&limit=all',
-        { headers: { Authorization: `Ghost ${token}` } }
-      )
-      if (!res.ok) throw new Error(`Ghost API error: ${res.status}`)
+      const res = await fetch('/api/ghost-members')
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Ghost proxy error: ${res.status}`)
+      }
       const { members: ghostMembers } = await res.json()
 
       const { data: { users }, error: usersErr } = await supabase.auth.admin.listUsers({ perPage: 1000 })
