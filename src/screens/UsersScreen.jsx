@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { Search, RefreshCw, ExternalLink } from 'lucide-react'
+import { Search, RefreshCw, ExternalLink, Copy } from 'lucide-react'
 import UserDetailPanel from './UserDetailPanel'
+
+const INVITE_BASE = 'https://ct3000-react.vercel.app/signup?invite='
 
 const STATUS_FILTERS = ['all', 'trialing', 'active', 'canceled', 'pending', 'none']
 
@@ -29,11 +31,13 @@ export default function UsersScreen() {
   const [users, setUsers] = useState([])
   const [subsMap, setSubsMap] = useState({})
   const [plansMap, setPlansMap] = useState({})
+  const [invites, setInvites] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedUser, setSelectedUser] = useState(null)
+  const [copiedInviteId, setCopiedInviteId] = useState(null)
 
   useEffect(() => { fetchData() }, [])
 
@@ -51,6 +55,13 @@ export default function UsersScreen() {
       const pMap = {}
       for (const row of (planRows || [])) pMap[row.user_id] = (pMap[row.user_id] || 0) + 1
       setPlansMap(pMap)
+
+      const { data: pendingInvites } = await supabase
+        .from('invited_users')
+        .select('id, email, token, invited_at')
+        .is('redeemed_at', null)
+        .order('invited_at', { ascending: false })
+      setInvites(pendingInvites || [])
 
       const map = {}
       for (const s of (subs || [])) map[s.user_id] = s
@@ -172,6 +183,51 @@ export default function UsersScreen() {
           </tbody>
         </table>
       </div>
+
+      {/* Pending Invites */}
+      {invites.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">
+            Pending Invites
+            <span className="text-gray-400 font-normal ml-1.5">({invites.length})</span>
+          </h2>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  {['Email', 'Invited', ''].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {invites.map(inv => {
+                  const url = INVITE_BASE + inv.token
+                  return (
+                    <tr key={inv.id}>
+                      <td className="px-4 py-3 text-sm text-gray-900">{inv.email}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{fmtDate(inv.invited_at)}</td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(url)
+                            setCopiedInviteId(inv.id)
+                            setTimeout(() => setCopiedInviteId(null), 2000)
+                          }}
+                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          {copiedInviteId === inv.id ? 'Copied!' : 'Copy link'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* User detail panel */}
       {selectedUser && (
