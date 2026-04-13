@@ -90,6 +90,7 @@ export default function PhiloinvestorScreen() {
         subscription_status: 'active',
         trial_ends_at: FOREVER_DATE,
         current_period_ends_at: FOREVER_DATE,
+        is_comped: true,
       }
 
       const { error: subErr } = existingSub

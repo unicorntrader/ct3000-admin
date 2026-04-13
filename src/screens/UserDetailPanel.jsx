@@ -51,7 +51,7 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
     const basePayload = {
       subscription_status: 'active',
       current_period_ends_at: expiresAt.toISOString(),
-      ...(isForever ? { trial_ends_at: FOREVER } : {}),
+      ...(isForever ? { trial_ends_at: FOREVER, is_comped: true } : {}),
     }
     const upsertPayload = sub ? basePayload : { user_id: user.id, ...basePayload }
 
