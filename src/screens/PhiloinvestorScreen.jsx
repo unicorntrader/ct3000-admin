@@ -13,6 +13,7 @@ export default function PhiloinvestorScreen() {
   const [subsMap, setSubsMap] = useState({})               // user_id -> sub
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('all')
   const [grantingId, setGrantingId] = useState(null)
   const [grantedIds, setGrantedIds] = useState(new Set())
   const [grantErrors, setGrantErrors] = useState({})
@@ -131,6 +132,22 @@ export default function PhiloinvestorScreen() {
         </button>
       </div>
 
+      <div className="flex items-center gap-1.5 mb-4">
+        {['all', 'paid', 'comped'].map(f => (
+          <button
+            key={f}
+            onClick={() => setStatusFilter(f)}
+            className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+              statusFilter === f
+                ? 'bg-blue-600 text-white border-transparent'
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50">
@@ -145,7 +162,7 @@ export default function PhiloinvestorScreen() {
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center text-sm text-gray-400">No paid members found</td>
               </tr>
-            ) : members.map(m => {
+            ) : members.filter(m => statusFilter === 'all' || m.status === statusFilter).map(m => {
               const supaUser = supabaseUserMap[m.email?.toLowerCase()]
               const sub = supaUser ? subsMap[supaUser.id] : null
               const isActive = sub?.subscription_status === 'active'
