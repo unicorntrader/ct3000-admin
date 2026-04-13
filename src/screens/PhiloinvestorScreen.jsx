@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { RefreshCw, Gift, CheckCircle, UserX } from 'lucide-react'
+import { RefreshCw, Gift, CheckCircle } from 'lucide-react'
 
 const FOREVER_DATE = '2099-01-01T00:00:00.000Z'
 
@@ -54,13 +54,23 @@ export default function PhiloinvestorScreen() {
   }
 
   const handleGrant = async (member) => {
-    const supaUser = supabaseUserMap[member.email?.toLowerCase()]
-    if (!supaUser) return
-
     setGrantingId(member.id)
     setGrantErrors(prev => { const n = { ...prev }; delete n[member.id]; return n })
 
     try {
+      let supaUser = supabaseUserMap[member.email?.toLowerCase()]
+
+      // Create Supabase user if they haven't signed up yet
+      if (!supaUser) {
+        const { data: created, error: createErr } = await supabase.auth.admin.createUser({
+          email: member.email,
+          email_confirm: true,
+        })
+        if (createErr) throw createErr
+        supaUser = created.user
+        setSupabaseUserMap(prev => ({ ...prev, [member.email.toLowerCase()]: supaUser }))
+      }
+
       const existingSub = subsMap[supaUser.id]
       const payload = {
         subscription_status: 'active',
@@ -156,13 +166,13 @@ export default function PhiloinvestorScreen() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {supaUser ? (
-                      <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                        granted
-                          ? 'bg-blue-50 text-blue-700'
-                          : 'bg-gray-100 text-gray-500'
-                      }`}>
-                        {granted ? 'Comped forever' : (sub?.subscription_status || 'no sub')}
+                    {granted ? (
+                      <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-blue-50 text-blue-700">
+                        Comped forever
+                      </span>
+                    ) : supaUser ? (
+                      <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-gray-100 text-gray-500">
+                        {sub?.subscription_status || 'no sub'}
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-gray-100 text-gray-400">
@@ -172,7 +182,12 @@ export default function PhiloinvestorScreen() {
                   </td>
                   <td className="px-4 py-3">
                     {grantError && <p className="text-xs text-red-500 mb-1">{grantError}</p>}
-                    {supaUser && !granted && (
+                    {granted ? (
+                      <span className="flex items-center gap-1.5 text-xs text-green-600">
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Access granted
+                      </span>
+                    ) : (
                       <button
                         onClick={() => handleGrant(m)}
                         disabled={isGranting}
@@ -181,18 +196,6 @@ export default function PhiloinvestorScreen() {
                         <Gift className="w-3.5 h-3.5" />
                         {isGranting ? 'Granting…' : 'Grant CT3000 access'}
                       </button>
-                    )}
-                    {supaUser && granted && (
-                      <span className="flex items-center gap-1.5 text-xs text-green-600">
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        Access granted
-                      </span>
-                    )}
-                    {!supaUser && (
-                      <span className="flex items-center gap-1.5 text-xs text-gray-400">
-                        <UserX className="w-3.5 h-3.5" />
-                        Not signed up yet
-                      </span>
                     )}
                   </td>
                 </tr>
