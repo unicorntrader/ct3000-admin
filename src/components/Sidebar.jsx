@@ -1,14 +1,15 @@
 import React from 'react'
 import {
-  LayoutDashboard, Users, CreditCard, Gift, Settings, LogOut,
+  LayoutDashboard, Users, CreditCard, Gift, Settings, LogOut, BookOpen,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { id: 'dashboard',      label: 'Dashboard',      Icon: LayoutDashboard },
-  { id: 'users',          label: 'Users',           Icon: Users },
-  { id: 'subscriptions',  label: 'Subscriptions',   Icon: CreditCard },
-  { id: 'promos',         label: 'Promo / Comps',   Icon: Gift },
-  { id: 'settings',       label: 'Settings',        Icon: Settings },
+  { id: 'dashboard',      label: 'Dashboard',       Icon: LayoutDashboard },
+  { id: 'users',          label: 'Users',            Icon: Users },
+  { id: 'subscriptions',  label: 'Subscriptions',    Icon: CreditCard },
+  { id: 'promos',         label: 'Promo / Comps',    Icon: Gift },
+  { id: 'philoinvestor',  label: 'Philoinvestor',    Icon: BookOpen },
+  { id: 'settings',       label: 'Settings',         Icon: Settings },
 ]
 
 export default function Sidebar({ activeTab, onTabChange, onSignOut, adminEmail }) {

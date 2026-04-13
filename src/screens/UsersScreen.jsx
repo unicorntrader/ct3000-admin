@@ -28,6 +28,7 @@ const fmtDate = (iso) => {
 export default function UsersScreen() {
   const [users, setUsers] = useState([])
   const [subsMap, setSubsMap] = useState({})
+  const [plansMap, setPlansMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
@@ -45,6 +46,11 @@ export default function UsersScreen() {
 
       const { data: subs, error: subsErr } = await supabase.from('user_subscriptions').select('*')
       if (subsErr) throw subsErr
+
+      const { data: planRows } = await supabase.from('planned_trades').select('user_id')
+      const pMap = {}
+      for (const row of (planRows || [])) pMap[row.user_id] = (pMap[row.user_id] || 0) + 1
+      setPlansMap(pMap)
 
       const map = {}
       for (const s of (subs || [])) map[s.user_id] = s
@@ -127,7 +133,7 @@ export default function UsersScreen() {
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              {['Email', 'Joined', 'Status', 'Trial ends', 'Period ends', 'Stripe ID', ''].map(h => (
+              {['Email', 'Joined', 'Status', 'Trial ends', 'Period ends', 'Stripe ID', 'Plans', ''].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
               ))}
             </tr>
@@ -135,7 +141,7 @@ export default function UsersScreen() {
           <tbody className="divide-y divide-gray-50">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">No users found</td>
+                <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">No users found</td>
               </tr>
             ) : filtered.map(u => {
               const sub = subsMap[u.id]
@@ -158,6 +164,7 @@ export default function UsersScreen() {
                       </span>
                     ) : '—'}
                   </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{plansMap[u.id] || 0}</td>
                   <td className="px-4 py-3 text-xs text-blue-600 font-medium">View →</td>
                 </tr>
               )

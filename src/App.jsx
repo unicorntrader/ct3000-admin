@@ -7,6 +7,7 @@ import UsersScreen from './screens/UsersScreen'
 import SubscriptionsScreen from './screens/SubscriptionsScreen'
 import PromoCodesScreen from './screens/PromoCodesScreen'
 import SettingsScreen from './screens/SettingsScreen'
+import PhiloinvestorScreen from './screens/PhiloinvestorScreen'
 
 function AppShell({ session }) {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -17,12 +18,13 @@ function AppShell({ session }) {
 
   const renderScreen = () => {
     switch (activeTab) {
-      case 'dashboard':     return <DashboardScreen />
-      case 'users':         return <UsersScreen />
-      case 'subscriptions': return <SubscriptionsScreen />
-      case 'promos':        return <PromoCodesScreen />
-      case 'settings':      return <SettingsScreen />
-      default:              return <DashboardScreen />
+      case 'dashboard':       return <DashboardScreen />
+      case 'users':           return <UsersScreen />
+      case 'subscriptions':   return <SubscriptionsScreen />
+      case 'promos':          return <PromoCodesScreen />
+      case 'philoinvestor':   return <PhiloinvestorScreen />
+      case 'settings':        return <SettingsScreen />
+      default:                return <DashboardScreen />
     }
   }
 

@@ -32,7 +32,7 @@ function InfoRow({ label, value }) {
 
 export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
   const [action, setAction] = useState(null) // 'comp' | 'extend' | 'cancel' | 'delete'
-  const [compMonths, setCompMonths] = useState(12)
+  const [compMonths, setCompMonths] = useState(12)  // number or 'forever'
   const [compNote, setCompNote] = useState('')
   const [extendDays, setExtendDays] = useState(7)
   const [saving, setSaving] = useState(false)
@@ -43,17 +43,17 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
   const handleComp = async () => {
     setSaving(true)
     setError(null)
-    const expiresAt = new Date()
-    expiresAt.setMonth(expiresAt.getMonth() + compMonths)
+    const FOREVER = '2099-01-01T00:00:00.000Z'
+    const isForever = compMonths === 'forever'
+    const expiresAt = isForever ? new Date(FOREVER) : (() => { const d = new Date(); d.setMonth(d.getMonth() + compMonths); return d })()
 
     // Update subscription
-    const upsertPayload = sub
-      ? { subscription_status: 'active', current_period_ends_at: expiresAt.toISOString() }
-      : {
-          user_id: user.id,
-          subscription_status: 'active',
-          current_period_ends_at: expiresAt.toISOString(),
-        }
+    const basePayload = {
+      subscription_status: 'active',
+      current_period_ends_at: expiresAt.toISOString(),
+      ...(isForever ? { trial_ends_at: FOREVER } : {}),
+    }
+    const upsertPayload = sub ? basePayload : { user_id: user.id, ...basePayload }
 
     const { error: subErr } = sub
       ? await supabase.from('user_subscriptions').update(upsertPayload).eq('user_id', user.id)
@@ -220,9 +220,16 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
               {action === 'comp' && (
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Duration (months)</label>
-                    <input type="number" min={1} max={24} value={compMonths} onChange={e => setCompMonths(Number(e.target.value))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">Duration</label>
+                    <select value={compMonths} onChange={e => setCompMonths(e.target.value === 'forever' ? 'forever' : Number(e.target.value))}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+                      <option value={1}>1 month</option>
+                      <option value={3}>3 months</option>
+                      <option value={6}>6 months</option>
+                      <option value={12}>12 months</option>
+                      <option value={24}>24 months</option>
+                      <option value="forever">Forever</option>
+                    </select>
                   </div>
                   <div>
                     <label className="text-xs font-medium text-gray-600 mb-1 block">Note (optional)</label>
@@ -231,7 +238,7 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
                   </div>
                   <button onClick={handleComp} disabled={saving}
                     className="w-full bg-blue-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                    {saving ? 'Saving…' : `Grant ${compMonths} months`}
+                    {saving ? 'Saving…' : `Grant ${compMonths === 'forever' ? 'Forever' : `${compMonths} month${compMonths === 1 ? '' : 's'}`}`}
                   </button>
                 </div>
               )}
