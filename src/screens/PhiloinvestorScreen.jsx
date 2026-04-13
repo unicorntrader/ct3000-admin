@@ -2,15 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { RefreshCw, Gift, CheckCircle } from 'lucide-react'
 
-const FOREVER_DATE = '2099-01-01T00:00:00.000Z'
-
 const fmtDate = (iso) => {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
-
-const isForeverComped = (sub) =>
-  sub?.current_period_ends_at?.startsWith('2099') || sub?.trial_ends_at?.startsWith('2099')
 
 export default function PhiloinvestorScreen() {
   const [members, setMembers] = useState([])
@@ -71,12 +66,15 @@ export default function PhiloinvestorScreen() {
         setSupabaseUserMap(prev => ({ ...prev, [member.email.toLowerCase()]: supaUser }))
       }
 
+      // Use Ghost's billing period end as the access expiry — Ghost is the source of truth
+      const periodEnd = member.subscriptions?.[0]?.current_period_end || null
+
       const existingSub = subsMap[supaUser.id]
       const payload = {
         subscription_status: 'active',
-        trial_ends_at: FOREVER_DATE,
-        current_period_ends_at: FOREVER_DATE,
-        is_comped: true,
+        current_period_ends_at: periodEnd,
+        trial_ends_at: null,
+        // is_comped intentionally NOT set — Ghost manages this, not admin manual comp
       }
 
       const { error: subErr } = existingSub
@@ -90,8 +88,8 @@ export default function PhiloinvestorScreen() {
         admin_user_id: session?.user?.id,
         target_user_id: supaUser.id,
         action_type: 'comp_access',
-        notes: `Philoinvestor Ghost member: ${member.email}`,
-        expires_at: FOREVER_DATE,
+        notes: `Philoinvestor Ghost member — ghost_id:${member.id}`,
+        expires_at: periodEnd,
       })
 
       setGrantedIds(prev => new Set([...prev, member.id]))
@@ -122,7 +120,7 @@ export default function PhiloinvestorScreen() {
             Philoinvestor
             <span className="text-gray-400 font-normal text-base ml-2">({members.length} paid members)</span>
           </h1>
-          <p className="text-xs text-gray-400 mt-0.5">Ghost paid members — grant CT3000 access</p>
+          <p className="text-xs text-gray-400 mt-0.5">Ghost paid members — CT3000 access mirrors Ghost subscription</p>
         </div>
         <button
           onClick={fetchData}
@@ -150,8 +148,8 @@ export default function PhiloinvestorScreen() {
             ) : members.map(m => {
               const supaUser = supabaseUserMap[m.email?.toLowerCase()]
               const sub = supaUser ? subsMap[supaUser.id] : null
-              const alreadyComped = isForeverComped(sub)
-              const granted = grantedIds.has(m.id) || alreadyComped
+              const isActive = sub?.subscription_status === 'active'
+              const granted = grantedIds.has(m.id) || isActive
               const isGranting = grantingId === m.id
               const grantError = grantErrors[m.id]
 
@@ -167,8 +165,8 @@ export default function PhiloinvestorScreen() {
                   </td>
                   <td className="px-4 py-3">
                     {granted ? (
-                      <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-blue-50 text-blue-700">
-                        Comped forever
+                      <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-green-50 text-green-700">
+                        active
                       </span>
                     ) : supaUser ? (
                       <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-gray-100 text-gray-500">
@@ -176,7 +174,7 @@ export default function PhiloinvestorScreen() {
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-gray-100 text-gray-400">
-                        Not signed up
+                        not signed up
                       </span>
                     )}
                   </td>
@@ -185,7 +183,7 @@ export default function PhiloinvestorScreen() {
                     {granted ? (
                       <span className="flex items-center gap-1.5 text-xs text-green-600">
                         <CheckCircle className="w-3.5 h-3.5" />
-                        Access granted
+                        Access active
                       </span>
                     ) : (
                       <button
