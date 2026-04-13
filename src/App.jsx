@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabaseClient'
-import AdminAuthGate, { isAdminEmail } from './components/AdminAuthGate'
+import AdminAuthGate from './components/AdminAuthGate'
 import Sidebar from './components/Sidebar'
 import DashboardScreen from './screens/DashboardScreen'
 import UsersScreen from './screens/UsersScreen'

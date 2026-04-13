@@ -39,7 +39,6 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const adminSession = supabase.auth.getSession()
 
   const handleComp = async () => {
     setSaving(true)

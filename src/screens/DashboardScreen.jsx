@@ -4,11 +4,6 @@ import { Users, TrendingUp, XCircle, Clock, DollarSign, RefreshCw } from 'lucide
 
 const MRR_PER_USER = 30
 
-const fmtDate = (iso) => {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
 const fmtTime = (iso) => {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
