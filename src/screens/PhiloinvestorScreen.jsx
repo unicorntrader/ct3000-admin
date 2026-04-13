@@ -135,7 +135,7 @@ export default function PhiloinvestorScreen() {
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              {['Email', 'Name', 'Subscribed', 'Ghost status', 'CT3000 status', ''].map(h => (
+              {['Email', 'Name', 'Subscribed', 'Status', 'CT3000 status', ''].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
               ))}
             </tr>
@@ -159,9 +159,10 @@ export default function PhiloinvestorScreen() {
                   <td className="px-4 py-3 text-sm text-gray-600">{m.name || '—'}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">{fmtDate(m.created_at)}</td>
                   <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-green-50 text-green-700">
-                      {m.status || 'paid'}
-                    </span>
+                    {m.status === 'comped'
+                      ? <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-purple-50 text-purple-700">Comped</span>
+                      : <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-green-50 text-green-700">Paid</span>
+                    }
                   </td>
                   <td className="px-4 py-3">
                     {granted ? (
