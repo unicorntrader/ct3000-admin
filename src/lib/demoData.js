@@ -7,13 +7,13 @@ import { supabaseAdmin as supabase } from './supabaseClient'
 // adds a few missed_trades rows so the admin flow covers all three features
 // the Journal surfaces (taken / missed / playbooks).
 
-// logical_trades.opened_at / closed_at are varchar(20) (legacy schema,
-// stores IBKR-style "YYYY-MM-DDTHH:MM:SS" strings). Slice off the .sssZ
-// suffix so we fit inside the limit (19 chars).
+// Returns a full ISO timestamp. logical_trades.opened_at / closed_at are
+// timestamptz as of the 2026-04-17 schema migration, so the full
+// 24-char ISO string (incl. milliseconds + Z) is accepted cleanly.
 const daysAgo = (n) => {
   const d = new Date()
   d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 19)
+  return d.toISOString()
 }
 
 /**
