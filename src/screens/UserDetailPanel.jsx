@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { X, ExternalLink, Gift, Clock, XCircle, Trash2 } from 'lucide-react'
+import { X, ExternalLink, Gift, Clock, XCircle, Trash2, Database, Sparkles, Eraser } from 'lucide-react'
+import { getDataCounts, seedDemoData, clearDemoData, clearAllUserData } from '../lib/demoData'
 
 const fmtDate = (iso) => {
   if (!iso) return '—'
@@ -38,6 +39,53 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  // Data section state
+  const [counts, setCounts] = useState(null)
+  const [countsLoading, setCountsLoading] = useState(true)
+  const [dataSaving, setDataSaving] = useState(false)
+  const [dataMessage, setDataMessage] = useState(null)
+  const [confirmClearDemo, setConfirmClearDemo] = useState(false)
+  const [confirmClearAll, setConfirmClearAll] = useState(false)
+
+  const refreshCounts = useCallback(async () => {
+    if (!user?.id) return
+    setCountsLoading(true)
+    const c = await getDataCounts(user.id)
+    setCounts(c)
+    setCountsLoading(false)
+  }, [user?.id])
+
+  useEffect(() => { refreshCounts() }, [refreshCounts])
+
+  const handleSeed = async () => {
+    setDataSaving(true); setDataMessage(null); setError(null)
+    const res = await seedDemoData(user.id)
+    setDataSaving(false)
+    if (res.error) { setError(`Seed failed: ${res.error}`); return }
+    setDataMessage('Demo data seeded.')
+    refreshCounts()
+  }
+
+  const handleClearDemo = async () => {
+    if (!confirmClearDemo) { setConfirmClearDemo(true); setConfirmClearAll(false); return }
+    setDataSaving(true); setDataMessage(null); setError(null)
+    const res = await clearDemoData(user.id)
+    setDataSaving(false); setConfirmClearDemo(false)
+    if (res.error) { setError(`Clear demo failed: ${res.error}`); return }
+    setDataMessage('Demo data cleared.')
+    refreshCounts()
+  }
+
+  const handleClearAll = async () => {
+    if (!confirmClearAll) { setConfirmClearAll(true); setConfirmClearDemo(false); return }
+    setDataSaving(true); setDataMessage(null); setError(null)
+    const res = await clearAllUserData(user.id)
+    setDataSaving(false); setConfirmClearAll(false)
+    if (res.error) { setError(`Clear all failed: ${res.error}`); return }
+    setDataMessage('All user data cleared.')
+    refreshCounts()
+  }
 
 
   const handleComp = async () => {
@@ -188,6 +236,86 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
                 </>
               ) : (
                 <p className="text-sm text-gray-400 py-3">No subscription record</p>
+              )}
+            </div>
+          </div>
+
+          {/* Data */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Data</p>
+              {counts && (
+                <div className="flex items-center gap-1.5">
+                  {counts.hasRealData && (
+                    <span className="px-2 py-0.5 text-[10px] rounded-full font-semibold bg-green-50 text-green-700">Real</span>
+                  )}
+                  {counts.hasDemoData && (
+                    <span className="px-2 py-0.5 text-[10px] rounded-full font-semibold bg-blue-50 text-blue-700">Demo</span>
+                  )}
+                  {!counts.hasRealData && !counts.hasDemoData && (
+                    <span className="px-2 py-0.5 text-[10px] rounded-full font-semibold bg-gray-100 text-gray-500">Empty</span>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="bg-gray-50 rounded-xl px-4 py-1">
+              {countsLoading ? (
+                <p className="text-sm text-gray-400 py-3">Loading…</p>
+              ) : counts ? (
+                <>
+                  <InfoRow label="Raw trades"      value={String(counts.trades)} />
+                  <InfoRow label="Logical trades"  value={String(counts.logical)} />
+                  <InfoRow label="Plans"           value={String(counts.plans)} />
+                  <InfoRow label="Missed trades"   value={String(counts.missed)} />
+                  <InfoRow label="Playbooks"       value={String(counts.playbooks)} />
+                  <InfoRow label="Open positions"  value={String(counts.open_positions)} />
+                </>
+              ) : (
+                <p className="text-sm text-gray-400 py-3">—</p>
+              )}
+            </div>
+
+            {/* Data actions */}
+            <div className="mt-3 space-y-2">
+              <button
+                onClick={handleSeed}
+                disabled={dataSaving}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 text-sm text-blue-700 hover:bg-blue-50 transition-colors w-full disabled:opacity-50"
+              >
+                <Sparkles className="w-4 h-4" />
+                {dataSaving && !confirmClearDemo && !confirmClearAll ? 'Seeding…' : 'Seed demo data'}
+              </button>
+
+              <button
+                onClick={handleClearDemo}
+                disabled={dataSaving}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-colors w-full disabled:opacity-50 border ${
+                  confirmClearDemo
+                    ? 'bg-amber-600 border-amber-600 text-white hover:bg-amber-700'
+                    : 'border-amber-200 text-amber-700 hover:bg-amber-50'
+                }`}
+              >
+                <Eraser className="w-4 h-4" />
+                {confirmClearDemo ? 'Click again to confirm' : 'Clear demo data (is_demo=true)'}
+              </button>
+
+              <button
+                onClick={handleClearAll}
+                disabled={dataSaving}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-colors w-full disabled:opacity-50 border ${
+                  confirmClearAll
+                    ? 'bg-red-600 border-red-600 text-white hover:bg-red-700'
+                    : 'border-red-200 text-red-700 hover:bg-red-50'
+                }`}
+              >
+                <Database className="w-4 h-4" />
+                {confirmClearAll ? 'Click again — wipes ALL user data' : 'Clear ALL data (nuclear)'}
+              </button>
+
+              {dataMessage && (
+                <p className="text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+                  {dataMessage}
+                </p>
               )}
             </div>
           </div>
