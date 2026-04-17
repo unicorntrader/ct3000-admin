@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient'
+import { supabaseAdmin as supabase } from './supabaseClient'
 
 // Admin-facing demo data utilities. Runs client-side using the service role
 // key, which this admin panel already has configured.
@@ -214,17 +214,13 @@ export async function clearDemoData(userId) {
     if (error) errors.push(`${label}: ${error.message}`)
   }
 
-  // Order: child tables first (logical_trade_executions → logical_trades;
-  // planned_trade_executions → planned_trades). FKs use SET NULL for
-  // playbooks, so order there is flexible.
-  await tryDelete(
-    supabase.from('logical_trade_executions').delete().eq('user_id', userId),
-    'logical_trade_executions'
-  )
-  await tryDelete(
-    supabase.from('planned_trade_executions').delete().eq('user_id', userId),
-    'planned_trade_executions'
-  )
+  // logical_trade_executions and planned_trade_executions are pure join
+  // tables (no user_id column); their FKs to logical_trades / trades /
+  // planned_trades have ON DELETE CASCADE, so deleting the parents below
+  // cleans the join rows automatically.
+  //
+  // playbooks FK from planned_trades / missed_trades uses ON DELETE SET NULL,
+  // so order doesn't matter for them.
   await tryDelete(
     supabase.from('missed_trades').delete().eq('user_id', userId),
     'missed_trades'
@@ -269,10 +265,9 @@ export async function clearAllUserData(userId) {
     if (error) errors.push(`${table}: ${error.message}`)
   }
 
-  // Child tables first (FK order)
+  // logical_trade_executions / planned_trade_executions lack user_id and
+  // cascade from their parents, so deleting the parents below wipes them too.
   for (const t of [
-    'logical_trade_executions',
-    'planned_trade_executions',
     'missed_trades',
     'logical_trades',
     'open_positions',
