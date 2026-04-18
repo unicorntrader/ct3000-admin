@@ -52,11 +52,17 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
     setConfirmSeed(false); setConfirmClearDemo(false); setConfirmClearAll(false)
   }
 
+  // All per-user mutations go to a single POST /api/users/[id] endpoint
+  // that dispatches on body.action. See api/users/[id]/index.js. Reduces
+  // the deployed function count (Hobby caps at 12).
+  const userAction = (body) =>
+    apiFetch(`/api/users/${user.id}`, { method: 'POST', body })
+
   const handleSeed = async () => {
     if (!confirmSeed) { resetConfirms(); setConfirmSeed(true); return }
     setDataSaving(true); setDataMessage(null); setError(null)
     try {
-      await apiFetch(`/api/users/${user.id}/seed-demo`, { method: 'POST' })
+      await userAction({ action: 'seed-demo' })
       setDataMessage('Demo data seeded.')
       refreshCounts()
     } catch (err) {
@@ -69,7 +75,7 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
     if (!confirmClearDemo) { resetConfirms(); setConfirmClearDemo(true); return }
     setDataSaving(true); setDataMessage(null); setError(null)
     try {
-      await apiFetch(`/api/users/${user.id}/clear-demo`, { method: 'POST' })
+      await userAction({ action: 'clear-demo' })
       setDataMessage('Demo data cleared.')
       refreshCounts()
     } catch (err) {
@@ -82,7 +88,7 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
     if (!confirmClearAll) { resetConfirms(); setConfirmClearAll(true); return }
     setDataSaving(true); setDataMessage(null); setError(null)
     try {
-      await apiFetch(`/api/users/${user.id}/clear-all`, { method: 'POST' })
+      await userAction({ action: 'clear-all' })
       setDataMessage('All user data cleared.')
       refreshCounts()
     } catch (err) {
@@ -96,10 +102,7 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
     setSaving(true)
     setError(null)
     try {
-      await apiFetch(`/api/users/${user.id}/comp`, {
-        method: 'POST',
-        body: { months: compMonths, note: compNote || null },
-      })
+      await userAction({ action: 'comp', months: compMonths, note: compNote || null })
       onUpdated()
     } catch (err) {
       setError(err.message)
@@ -111,10 +114,7 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
     setSaving(true)
     setError(null)
     try {
-      await apiFetch(`/api/users/${user.id}/extend-trial`, {
-        method: 'POST',
-        body: { days: extendDays },
-      })
+      await userAction({ action: 'extend-trial', days: extendDays })
       onUpdated()
     } catch (err) {
       setError(err.message)
@@ -126,7 +126,7 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
     setSaving(true)
     setError(null)
     try {
-      await apiFetch(`/api/users/${user.id}/cancel`, { method: 'POST' })
+      await userAction({ action: 'cancel' })
       onUpdated()
     } catch (err) {
       setError(err.message)

@@ -42,9 +42,9 @@ function GrantCompModal({ onClose, onGranted }) {
     setSaving(true)
     setError(null)
     try {
-      await apiFetch(`/api/users/${selectedUser.id}/comp`, {
+      await apiFetch(`/api/users/${selectedUser.id}`, {
         method: 'POST',
-        body: { months, note: note || null },
+        body: { action: 'comp', months, note: note || null },
       })
       onGranted()
     } catch (err) {
