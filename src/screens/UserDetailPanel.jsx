@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { apiFetch } from '../lib/api'
 import { X, ExternalLink, Gift, Clock, XCircle, Trash2, Database, Sparkles, Eraser } from 'lucide-react'
-import { seedDemoData, clearDemoData, clearAllUserData } from '../lib/demoData'
 
 const fmtDate = (iso) => {
   if (!iso) return '—'
@@ -65,31 +64,40 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
 
   const handleSeed = async () => {
     setDataSaving(true); setDataMessage(null); setError(null)
-    const res = await seedDemoData(user.id)
+    try {
+      await apiFetch(`/api/users/${user.id}/seed-demo`, { method: 'POST' })
+      setDataMessage('Demo data seeded.')
+      refreshCounts()
+    } catch (err) {
+      setError(`Seed failed: ${err.message}`)
+    }
     setDataSaving(false)
-    if (res.error) { setError(`Seed failed: ${res.error}`); return }
-    setDataMessage('Demo data seeded.')
-    refreshCounts()
   }
 
   const handleClearDemo = async () => {
     if (!confirmClearDemo) { setConfirmClearDemo(true); setConfirmClearAll(false); return }
     setDataSaving(true); setDataMessage(null); setError(null)
-    const res = await clearDemoData(user.id)
+    try {
+      await apiFetch(`/api/users/${user.id}/clear-demo`, { method: 'POST' })
+      setDataMessage('Demo data cleared.')
+      refreshCounts()
+    } catch (err) {
+      setError(`Clear demo failed: ${err.message}`)
+    }
     setDataSaving(false); setConfirmClearDemo(false)
-    if (res.error) { setError(`Clear demo failed: ${res.error}`); return }
-    setDataMessage('Demo data cleared.')
-    refreshCounts()
   }
 
   const handleClearAll = async () => {
     if (!confirmClearAll) { setConfirmClearAll(true); setConfirmClearDemo(false); return }
     setDataSaving(true); setDataMessage(null); setError(null)
-    const res = await clearAllUserData(user.id)
+    try {
+      await apiFetch(`/api/users/${user.id}/clear-all`, { method: 'POST' })
+      setDataMessage('All user data cleared.')
+      refreshCounts()
+    } catch (err) {
+      setError(`Clear all failed: ${err.message}`)
+    }
     setDataSaving(false); setConfirmClearAll(false)
-    if (res.error) { setError(`Clear all failed: ${res.error}`); return }
-    setDataMessage('All user data cleared.')
-    refreshCounts()
   }
 
 
