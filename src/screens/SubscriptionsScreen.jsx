@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { apiFetch } from '../lib/api'
 import { RefreshCw, ExternalLink } from 'lucide-react'
 
 const STATUS_FILTERS = ['all', 'active', 'trialing', 'canceled', 'pending']
@@ -37,16 +37,17 @@ export default function SubscriptionsScreen() {
     setLoading(true)
     setError(null)
     try {
-      const { data: subsData, error: subsErr } = await supabase.from('user_subscriptions').select('*').order('created_at', { ascending: false })
-      if (subsErr) throw subsErr
-
-      const { data: { users }, error: usersErr } = await supabase.auth.admin.listUsers({ perPage: 1000 })
-      if (usersErr) throw usersErr
+      const { users, subscriptions } = await apiFetch('/api/users')
 
       const map = {}
       for (const u of (users || [])) map[u.id] = u.email
       setEmailMap(map)
-      setSubs(subsData || [])
+
+      // Match prior client-side ordering (newest first by created_at)
+      const sorted = [...(subscriptions || [])].sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+      )
+      setSubs(sorted)
     } catch (err) {
       setError(err.message)
     }

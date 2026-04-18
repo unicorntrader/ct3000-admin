@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { apiFetch } from '../lib/api'
 import { RefreshCw, Gift, CheckCircle, Copy } from 'lucide-react'
 
 const INVITE_BASE = 'https://ct3000-react.vercel.app/signup?invite='
@@ -28,36 +28,32 @@ export default function PhiloinvestorScreen() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/ghost-members')
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error || `Ghost proxy error: ${res.status}`)
+      // Ghost members come straight from the existing serverless route.
+      const ghostRes = await fetch('/api/ghost-members')
+      if (!ghostRes.ok) {
+        const body = await ghostRes.json().catch(() => ({}))
+        throw new Error(body.error || `Ghost proxy error: ${ghostRes.status}`)
       }
-      const { members: ghostMembers } = await res.json()
+      const { members: ghostMembers } = await ghostRes.json()
 
-      const { data: { users }, error: usersErr } = await supabase.auth.admin.listUsers({ perPage: 1000 })
-      if (usersErr) throw usersErr
+      const [{ users, subscriptions }, { invites }] = await Promise.all([
+        apiFetch('/api/users'),
+        apiFetch('/api/invites'),
+      ])
+
       const emailMap = {}
       for (const u of (users || [])) if (u.email) emailMap[u.email.toLowerCase()] = u
 
-      const { data: subs } = await supabase.from('user_subscriptions').select('*')
       const sMap = {}
-      for (const s of (subs || [])) sMap[s.user_id] = s
+      for (const s of (subscriptions || [])) sMap[s.user_id] = s
 
-      // Load any already-sent invites for these members
-      const emails = (ghostMembers || []).map(m => m.email?.toLowerCase()).filter(Boolean)
-      const { data: existingInvites } = await supabase
-        .from('invited_users')
-        .select('email, token')
-        .in('email', emails)
-        .is('redeemed_at', null)
       const inviteMap = {}
-      for (const inv of (existingInvites || [])) inviteMap[inv.email.toLowerCase()] = INVITE_BASE + inv.token
+      for (const inv of (invites || [])) inviteMap[inv.email.toLowerCase()] = INVITE_BASE + inv.token
 
       setMembers(ghostMembers || [])
       setSupabaseUserMap(emailMap)
       setSubsMap(sMap)
-      // Pre-populate inviteLinks by ghost member id
+
       const idInviteMap = {}
       for (const m of (ghostMembers || [])) {
         const link = inviteMap[m.email?.toLowerCase()]
@@ -75,38 +71,18 @@ export default function PhiloinvestorScreen() {
     setGrantErrors(prev => { const n = { ...prev }; delete n[member.id]; return n })
 
     try {
-      const supaUser = supabaseUserMap[member.email?.toLowerCase()]
+      const periodEnd = member.subscriptions?.[0]?.current_period_end || null
+      const res = await apiFetch('/api/philoinvestor/grant', {
+        method: 'POST',
+        body: { email: member.email, ghostMemberId: member.id, periodEnd },
+      })
 
-      if (supaUser) {
-        // User already has a Supabase account — comp them directly
-        const periodEnd = member.subscriptions?.[0]?.current_period_end || null
-        const existingSub = subsMap[supaUser.id]
-        const payload = { subscription_status: 'active', current_period_ends_at: periodEnd, trial_ends_at: null }
-
-        const { error: subErr } = existingSub
-          ? await supabase.from('user_subscriptions').update(payload).eq('user_id', supaUser.id)
-          : await supabase.from('user_subscriptions').insert({ user_id: supaUser.id, ...payload })
-        if (subErr) throw subErr
-
-        const { data: { session } } = await supabase.auth.getSession()
-        await supabase.from('admin_actions').insert({
-          admin_user_id: session?.user?.id,
-          target_user_id: supaUser.id,
-          action_type: 'comp_access',
-          notes: `Philoinvestor Ghost member — ghost_id:${member.id}`,
-          expires_at: periodEnd,
-        })
-
+      if (res.status === 'granted') {
         setGrantedIds(prev => new Set([...prev, member.id]))
-        setSubsMap(prev => ({ ...prev, [supaUser.id]: { ...prev[supaUser.id], ...payload, user_id: supaUser.id } }))
-      } else {
-        // Not signed up yet — create an invite link
-        const token = crypto.randomUUID()
-        const { error: inviteErr } = await supabase
-          .from('invited_users')
-          .insert({ email: member.email, token, is_comped: true })
-        if (inviteErr) throw inviteErr
-        setInviteLinks(prev => ({ ...prev, [member.id]: INVITE_BASE + token }))
+        // Refresh from /api so subsMap reflects the new active sub
+        fetchData()
+      } else if (res.status === 'invited') {
+        setInviteLinks(prev => ({ ...prev, [member.id]: res.inviteUrl }))
       }
     } catch (err) {
       setGrantErrors(prev => ({ ...prev, [member.id]: err.message }))

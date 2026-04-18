@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { apiFetch } from '../lib/api'
 import { RefreshCw } from 'lucide-react'
 
 function Row({ label, hint, children }) {
@@ -25,15 +25,12 @@ export default function SettingsScreen() {
   const fetchSettings = async () => {
     setLoading(true)
     setError(null)
-    const { data, error: err } = await supabase
-      .from('app_settings')
-      .select('*')
-
-    if (err) {
-      setError(err.message)
-    } else {
-      const mm = data?.find(r => r.key === 'maintenance_mode')
+    try {
+      const { settings } = await apiFetch('/api/settings')
+      const mm = settings?.find(r => r.key === 'maintenance_mode')
       setMaintenanceMode(mm?.value === 'true')
+    } catch (err) {
+      setError(err.message)
     }
     setLoading(false)
   }
@@ -42,14 +39,14 @@ export default function SettingsScreen() {
     setSaving(true)
     setError(null)
     const newVal = !maintenanceMode
-    const { error: err } = await supabase
-      .from('app_settings')
-      .upsert({ key: 'maintenance_mode', value: String(newVal), updated_at: new Date().toISOString() }, { onConflict: 'key' })
-
-    if (err) {
-      setError(err.message)
-    } else {
+    try {
+      await apiFetch('/api/settings', {
+        method: 'POST',
+        body: { key: 'maintenance_mode', value: String(newVal) },
+      })
       setMaintenanceMode(newVal)
+    } catch (err) {
+      setError(err.message)
     }
     setSaving(false)
   }

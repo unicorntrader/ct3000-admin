@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { apiFetch } from '../lib/api'
 import { RefreshCw, Plus, Search } from 'lucide-react'
 
 const fmtDate = (iso) => {
@@ -11,6 +11,12 @@ const ACTION_LABELS = {
   comp_access:          'Comp access',
   extend_trial:         'Extend trial',
   cancel_subscription:  'Cancel subscription',
+  seed_demo:            'Seed demo',
+  clear_demo:           'Clear demo',
+  clear_all:            'Clear all data',
+  delete_user:          'Delete user',
+  create_invite:        'Create invite',
+  update_setting:       'Update setting',
 }
 
 function GrantCompModal({ onClose, onGranted }) {
@@ -24,48 +30,29 @@ function GrantCompModal({ onClose, onGranted }) {
 
   const searchUsers = async () => {
     if (!emailSearch.trim()) return
-    const { data: { users: found } } = await supabase.auth.admin.listUsers({ perPage: 50 })
-    setUsers((found || []).filter(u => u.email?.toLowerCase().includes(emailSearch.toLowerCase())))
+    try {
+      const { users: all } = await apiFetch('/api/users')
+      const q = emailSearch.toLowerCase()
+      setUsers((all || []).filter(u => u.email?.toLowerCase().includes(q)))
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   const handleGrant = async () => {
     if (!selectedUser) return
     setSaving(true)
     setError(null)
-
-    const expiresAt = new Date()
-    expiresAt.setMonth(expiresAt.getMonth() + months)
-
-    // Check if sub exists
-    const { data: existingSub } = await supabase
-      .from('user_subscriptions')
-      .select('id')
-      .eq('user_id', selectedUser.id)
-      .maybeSingle()
-
-    const payload = {
-      user_id: selectedUser.id,
-      subscription_status: 'active',
-      current_period_ends_at: expiresAt.toISOString(),
+    try {
+      await apiFetch(`/api/users/${selectedUser.id}/comp`, {
+        method: 'POST',
+        body: { months, note: note || null },
+      })
+      onGranted()
+    } catch (err) {
+      setError(err.message)
     }
-
-    const { error: subErr } = existingSub
-      ? await supabase.from('user_subscriptions').update(payload).eq('user_id', selectedUser.id)
-      : await supabase.from('user_subscriptions').insert(payload)
-
-    if (subErr) { setError(subErr.message); setSaving(false); return }
-
-    const { data: { session } } = await supabase.auth.getSession()
-    await supabase.from('admin_actions').insert({
-      admin_user_id: session?.user?.id,
-      target_user_id: selectedUser.id,
-      action_type: 'comp_access',
-      notes: note || null,
-      expires_at: expiresAt.toISOString(),
-    })
-
     setSaving(false)
-    onGranted()
   }
 
   return (
@@ -163,19 +150,9 @@ export default function PromoCodesScreen() {
     setLoading(true)
     setError(null)
     try {
-      const { data, error: actErr } = await supabase
-        .from('admin_actions')
-        .select('*')
-        .order('created_at', { ascending: false })
-      if (actErr) throw actErr
-
-      const { data: { users }, error: usersErr } = await supabase.auth.admin.listUsers({ perPage: 1000 })
-      if (usersErr) throw usersErr
-
-      const map = {}
-      for (const u of (users || [])) map[u.id] = u.email
-      setEmailMap(map)
-      setActions(data || [])
+      const { actions: act, emailMap: em } = await apiFetch('/api/admin-actions')
+      setActions(act || [])
+      setEmailMap(em || {})
     } catch (err) {
       setError(err.message)
     }
@@ -227,7 +204,7 @@ export default function PromoCodesScreen() {
               <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-gray-400">No admin actions yet</td></tr>
             ) : actions.map(a => (
               <tr key={a.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-sm font-medium text-gray-900">{emailMap[a.target_user_id] || a.target_user_id}</td>
+                <td className="px-4 py-3 text-sm font-medium text-gray-900">{emailMap[a.target_user_id] || a.target_user_id || '—'}</td>
                 <td className="px-4 py-3">
                   <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-blue-50 text-blue-700">
                     {ACTION_LABELS[a.action_type] || a.action_type}

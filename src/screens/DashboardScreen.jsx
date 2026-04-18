@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { apiFetch } from '../lib/api'
 import { Users, TrendingUp, XCircle, Clock, DollarSign, RefreshCw } from 'lucide-react'
 
 const MRR_PER_USER = 30
@@ -36,52 +36,9 @@ export default function DashboardScreen() {
     setLoading(true)
     setError(null)
     try {
-      // All users from auth
-      const { data: { users }, error: usersErr } = await supabase.auth.admin.listUsers({ perPage: 1000 })
-      if (usersErr) throw usersErr
-
-      // All subscriptions
-      const { data: subs, error: subsErr } = await supabase.from('user_subscriptions').select('*')
-      if (subsErr) throw subsErr
-
-      const now = new Date()
-      const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000)
-      const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000)
-
-      const totalUsers = users.length
-      const newLast7 = users.filter(u => new Date(u.created_at) >= sevenDaysAgo).length
-      const newLast30 = users.filter(u => new Date(u.created_at) >= thirtyDaysAgo).length
-
-      const active = subs.filter(s => s.subscription_status === 'active').length
-      const trialing = subs.filter(s => s.subscription_status === 'trialing').length
-      const canceled = subs.filter(s => s.subscription_status === 'canceled').length
-      const mrr = active * MRR_PER_USER
-
-      // Trial conversion: (active / (active + canceled)) * 100 — excludes still-trialing
-      const converted = active + canceled
-      const conversionRate = converted > 0 ? Math.round((active / converted) * 100) : null
-
-      setStats({ totalUsers, newLast7, newLast30, active, trialing, canceled, mrr, conversionRate })
-
-      // Activity feed: recent signups + recent subscription changes
-      const recentUsers = [...users]
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .slice(0, 5)
-        .map(u => ({ type: 'signup', email: u.email, time: u.created_at }))
-
-      const recentSubs = [...subs]
-        .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
-        .slice(0, 5)
-        .map(s => {
-          const user = users.find(u => u.id === s.user_id)
-          return { type: 'subscription', email: user?.email || s.user_id, status: s.subscription_status, time: s.updated_at }
-        })
-
-      const combined = [...recentUsers, ...recentSubs]
-        .sort((a, b) => new Date(b.time) - new Date(a.time))
-        .slice(0, 10)
-
-      setActivity(combined)
+      const { stats: s, activity: a } = await apiFetch('/api/dashboard')
+      setStats(s)
+      setActivity(a || [])
     } catch (err) {
       setError(err.message)
     }

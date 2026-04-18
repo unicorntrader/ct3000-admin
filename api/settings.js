@@ -1,4 +1,3 @@
-const crypto = require('crypto')
 const { verifyAdmin } = require('./_lib/auth')
 const { supabaseAdmin } = require('./_lib/supabase-admin')
 
@@ -16,38 +15,37 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const { data, error } = await supabaseAdmin
-        .from('invited_users')
-        .select('id, email, token, invited_at')
-        .is('redeemed_at', null)
-        .order('invited_at', { ascending: false })
+      const { data, error } = await supabaseAdmin.from('app_settings').select('*')
       if (error) throw error
-      return res.status(200).json({ invites: data || [] })
+      return res.status(200).json({ settings: data || [] })
     } catch (err) {
       return res.status(500).json({ error: err.message })
     }
   }
 
   if (req.method === 'POST') {
-    const { email, isComped } = readJsonBody(req)
-    if (!email) return res.status(400).json({ error: 'email required' })
-
+    const { key, value } = readJsonBody(req)
+    if (!key || typeof value === 'undefined') {
+      return res.status(400).json({ error: 'key and value required' })
+    }
     try {
-      const token = crypto.randomUUID()
       const { error } = await supabaseAdmin
-        .from('invited_users')
-        .insert({ email, token, is_comped: !!isComped })
+        .from('app_settings')
+        .upsert(
+          { key, value: String(value), updated_at: new Date().toISOString() },
+          { onConflict: 'key' }
+        )
       if (error) throw error
 
       await supabaseAdmin.from('admin_actions').insert({
         admin_user_id: admin.id,
         target_user_id: null,
-        action_type: 'create_invite',
-        notes: `Invited ${email}${isComped ? ' (comped)' : ''}`,
+        action_type: 'update_setting',
+        notes: `${key} = ${value}`,
         expires_at: null,
       })
 
-      return res.status(200).json({ token })
+      return res.status(200).json({ success: true })
     } catch (err) {
       return res.status(500).json({ error: err.message })
     }

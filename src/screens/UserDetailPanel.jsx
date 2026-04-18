@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabaseClient'
 import { apiFetch } from '../lib/api'
 import { X, ExternalLink, Gift, Clock, XCircle, Trash2, Database, Sparkles, Eraser } from 'lucide-react'
 
@@ -104,102 +103,57 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
   const handleComp = async () => {
     setSaving(true)
     setError(null)
-    const FOREVER = '2099-01-01T00:00:00.000Z'
-    const isForever = compMonths === 'forever'
-    const expiresAt = isForever ? new Date(FOREVER) : (() => { const d = new Date(); d.setMonth(d.getMonth() + compMonths); return d })()
-
-    // Update subscription
-    const basePayload = {
-      subscription_status: 'active',
-      current_period_ends_at: expiresAt.toISOString(),
-      ...(isForever ? { trial_ends_at: FOREVER, is_comped: true } : {}),
+    try {
+      await apiFetch(`/api/users/${user.id}/comp`, {
+        method: 'POST',
+        body: { months: compMonths, note: compNote || null },
+      })
+      onUpdated()
+    } catch (err) {
+      setError(err.message)
     }
-    const upsertPayload = sub ? basePayload : { user_id: user.id, ...basePayload }
-
-    const { error: subErr } = sub
-      ? await supabase.from('user_subscriptions').update(upsertPayload).eq('user_id', user.id)
-      : await supabase.from('user_subscriptions').insert(upsertPayload)
-
-    if (subErr) { setError(subErr.message); setSaving(false); return }
-
-    // Log admin action
-    const { data: { session } } = await supabase.auth.getSession()
-    await supabase.from('admin_actions').insert({
-      admin_user_id: session?.user?.id,
-      target_user_id: user.id,
-      action_type: 'comp_access',
-      notes: compNote || null,
-      expires_at: expiresAt.toISOString(),
-    })
-
     setSaving(false)
-    onUpdated()
   }
 
   const handleExtend = async () => {
     setSaving(true)
     setError(null)
-    const base = sub?.trial_ends_at ? new Date(sub.trial_ends_at) : new Date()
-    const newEnd = new Date(Math.max(base, new Date()))
-    newEnd.setDate(newEnd.getDate() + extendDays)
-
-    const { error: subErr } = await supabase
-      .from('user_subscriptions')
-      .update({ trial_ends_at: newEnd.toISOString() })
-      .eq('user_id', user.id)
-
-    if (subErr) { setError(subErr.message); setSaving(false); return }
-
-    const { data: { session } } = await supabase.auth.getSession()
-    await supabase.from('admin_actions').insert({
-      admin_user_id: session?.user?.id,
-      target_user_id: user.id,
-      action_type: 'extend_trial',
-      notes: `Extended by ${extendDays} days`,
-      expires_at: newEnd.toISOString(),
-    })
-
+    try {
+      await apiFetch(`/api/users/${user.id}/extend-trial`, {
+        method: 'POST',
+        body: { days: extendDays },
+      })
+      onUpdated()
+    } catch (err) {
+      setError(err.message)
+    }
     setSaving(false)
-    onUpdated()
   }
 
   const handleCancel = async () => {
     setSaving(true)
     setError(null)
-    const { error: subErr } = await supabase
-      .from('user_subscriptions')
-      .update({ subscription_status: 'canceled' })
-      .eq('user_id', user.id)
-
-    if (subErr) { setError(subErr.message); setSaving(false); return }
-
-    const { data: { session } } = await supabase.auth.getSession()
-    await supabase.from('admin_actions').insert({
-      admin_user_id: session?.user?.id,
-      target_user_id: user.id,
-      action_type: 'cancel_subscription',
-      notes: null,
-      expires_at: null,
-    })
-
+    try {
+      await apiFetch(`/api/users/${user.id}/cancel`, { method: 'POST' })
+      onUpdated()
+    } catch (err) {
+      setError(err.message)
+    }
     setSaving(false)
-    onUpdated()
   }
 
   const handleDelete = async () => {
     if (!confirmDelete) { setConfirmDelete(true); return }
     setSaving(true)
     setError(null)
-
-    // Delete subscription row first
-    await supabase.from('user_subscriptions').delete().eq('user_id', user.id)
-
-    // Delete auth user
-    const { error: delErr } = await supabase.auth.admin.deleteUser(user.id)
-    if (delErr) { setError(delErr.message); setSaving(false); setConfirmDelete(false); return }
-
+    try {
+      await apiFetch(`/api/users/${user.id}`, { method: 'DELETE' })
+      onUpdated()
+    } catch (err) {
+      setError(err.message)
+      setConfirmDelete(false)
+    }
     setSaving(false)
-    onUpdated()
   }
 
   return (
