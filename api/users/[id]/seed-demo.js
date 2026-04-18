@@ -16,14 +16,22 @@ module.exports = async function handler(req, res) {
   const { id: userId } = req.query
   if (!userId) return res.status(400).json({ error: 'user id required' })
 
-  // Clear any stale demo data first so this is safely re-runnable
-  await Promise.all([
+  // Clear any stale demo data first so this is safely re-runnable. Surface
+  // cleanup failures up front rather than silently inserting on top of
+  // existing demo rows (which used to leave duplicates).
+  const cleanupResults = await Promise.all([
     supabaseAdmin.from('missed_trades').delete().eq('user_id', userId),
     supabaseAdmin.from('logical_trades').delete().eq('user_id', userId).eq('is_demo', true),
     supabaseAdmin.from('open_positions').delete().eq('user_id', userId).eq('is_demo', true),
     supabaseAdmin.from('planned_trades').delete().eq('user_id', userId).eq('is_demo', true),
     supabaseAdmin.from('playbooks').delete().eq('user_id', userId).eq('is_demo', true),
   ])
+  const cleanupErrors = cleanupResults
+    .map(r => r.error?.message)
+    .filter(Boolean)
+  if (cleanupErrors.length) {
+    return res.status(500).json({ error: `cleanup: ${cleanupErrors.join('; ')}` })
+  }
 
   // ── Playbooks first ──
   const { data: playbooks, error: pbErr } = await supabaseAdmin

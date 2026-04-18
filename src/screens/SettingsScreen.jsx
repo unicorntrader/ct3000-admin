@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { apiFetch } from '../lib/api'
+import LoadError from '../components/LoadError'
+import Spinner from '../components/Spinner'
 import { RefreshCw } from 'lucide-react'
 
 function Row({ label, hint, children }) {
@@ -62,7 +64,9 @@ export default function SettingsScreen() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-sm text-red-600 mb-4">{error}</div>
+        <div className="mb-4">
+          <LoadError message={error} onRetry={fetchSettings} />
+        </div>
       )}
 
       {/* Stripe */}
@@ -94,7 +98,7 @@ export default function SettingsScreen() {
             hint={maintenanceMode ? 'App is showing maintenance screen to users' : 'App is live and accessible'}
           >
             {loading ? (
-              <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
+              <Spinner inline />
             ) : (
               <button
                 onClick={toggleMaintenance}

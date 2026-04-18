@@ -1,13 +1,6 @@
 const { verifyAdmin } = require('../../_lib/auth')
 const { supabaseAdmin } = require('../../_lib/supabase-admin')
-
-function readJsonBody(req) {
-  if (req.body && typeof req.body === 'object') return req.body
-  if (typeof req.body === 'string') {
-    try { return JSON.parse(req.body) } catch { return {} }
-  }
-  return {}
-}
+const { readJsonBody } = require('../../_lib/req')
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })

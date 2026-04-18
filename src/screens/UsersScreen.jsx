@@ -1,31 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { apiFetch } from '../lib/api'
+import { fmtDate } from '../lib/format'
+import { INVITE_BASE_URL } from '../lib/constants'
+import StatusBadge from '../components/StatusBadge'
+import Spinner from '../components/Spinner'
+import LoadError from '../components/LoadError'
 import { Search, RefreshCw, ExternalLink, Copy } from 'lucide-react'
 import UserDetailPanel from './UserDetailPanel'
 
-const INVITE_BASE = 'https://ct3000-react.vercel.app/signup?invite='
-
+// 'none' covers users without any user_subscriptions row. SubscriptionsScreen
+// drops it from its filter list because every row in user_subscriptions has a
+// status by definition. Keep these intentionally divergent.
 const STATUS_FILTERS = ['all', 'trialing', 'active', 'canceled', 'pending', 'none']
-
-const statusBadge = (status) => {
-  const styles = {
-    active:   'bg-green-50 text-green-700',
-    trialing: 'bg-amber-50 text-amber-700',
-    canceled: 'bg-red-50 text-red-600',
-    pending:  'bg-gray-100 text-gray-500',
-    none:     'bg-gray-100 text-gray-400',
-  }
-  return (
-    <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${styles[status] || 'bg-gray-100 text-gray-400'}`}>
-      {status || 'none'}
-    </span>
-  )
-}
-
-const fmtDate = (iso) => {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
 
 export default function UsersScreen() {
   const [users, setUsers] = useState([])
@@ -77,17 +63,8 @@ export default function UsersScreen() {
     setSelectedUser(null)
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-sm text-red-700">Error: {error}</div>
-  }
+  if (loading) return <Spinner />
+  if (error) return <LoadError message={`Error: ${error}`} onRetry={fetchData} />
 
   return (
     <div>
@@ -153,7 +130,7 @@ export default function UsersScreen() {
                 >
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{u.email}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">{fmtDate(u.created_at)}</td>
-                  <td className="px-4 py-3">{statusBadge(sub?.subscription_status)}</td>
+                  <td className="px-4 py-3"><StatusBadge status={sub?.subscription_status} /></td>
                   <td className="px-4 py-3 text-sm text-gray-500">{fmtDate(sub?.trial_ends_at)}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">{fmtDate(sub?.current_period_ends_at)}</td>
                   <td className="px-4 py-3 text-xs text-gray-400 font-mono">
@@ -191,7 +168,7 @@ export default function UsersScreen() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {invites.map(inv => {
-                  const url = INVITE_BASE + inv.token
+                  const url = INVITE_BASE_URL + inv.token
                   return (
                     <tr key={inv.id}>
                       <td className="px-4 py-3 text-sm text-gray-900">{inv.email}</td>

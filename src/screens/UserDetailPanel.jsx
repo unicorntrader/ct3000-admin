@@ -1,25 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { apiFetch } from '../lib/api'
+import { fmtDateTime } from '../lib/format'
+import StatusBadge from '../components/StatusBadge'
 import { X, ExternalLink, Gift, Clock, XCircle, Trash2, Database, Sparkles, Eraser } from 'lucide-react'
-
-const fmtDate = (iso) => {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-const statusBadge = (status) => {
-  const styles = {
-    active:   'bg-green-50 text-green-700',
-    trialing: 'bg-amber-50 text-amber-700',
-    canceled: 'bg-red-50 text-red-600',
-    pending:  'bg-gray-100 text-gray-500',
-  }
-  return (
-    <span className={`px-2.5 py-1 text-xs rounded-full font-medium ${styles[status] || 'bg-gray-100 text-gray-400'}`}>
-      {status || 'none'}
-    </span>
-  )
-}
 
 function InfoRow({ label, value }) {
   return (
@@ -31,7 +14,10 @@ function InfoRow({ label, value }) {
 }
 
 export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
-  const [action, setAction] = useState(null) // 'comp' | 'extend' | 'cancel' | 'delete'
+  // Tracks which collapsible action card is open. Delete uses its own
+  // confirmDelete state instead because the button itself doubles as the
+  // confirm step (no inline panel).
+  const [action, setAction] = useState(null) // 'comp' | 'extend' | 'cancel'
   const [compMonths, setCompMonths] = useState(12)  // number or 'forever'
   const [compNote, setCompNote] = useState('')
   const [extendDays, setExtendDays] = useState(7)
@@ -44,6 +30,7 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
   const [countsLoading, setCountsLoading] = useState(true)
   const [dataSaving, setDataSaving] = useState(false)
   const [dataMessage, setDataMessage] = useState(null)
+  const [confirmSeed, setConfirmSeed] = useState(false)
   const [confirmClearDemo, setConfirmClearDemo] = useState(false)
   const [confirmClearAll, setConfirmClearAll] = useState(false)
 
@@ -61,7 +48,12 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
 
   useEffect(() => { refreshCounts() }, [refreshCounts])
 
+  const resetConfirms = () => {
+    setConfirmSeed(false); setConfirmClearDemo(false); setConfirmClearAll(false)
+  }
+
   const handleSeed = async () => {
+    if (!confirmSeed) { resetConfirms(); setConfirmSeed(true); return }
     setDataSaving(true); setDataMessage(null); setError(null)
     try {
       await apiFetch(`/api/users/${user.id}/seed-demo`, { method: 'POST' })
@@ -70,11 +62,11 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
     } catch (err) {
       setError(`Seed failed: ${err.message}`)
     }
-    setDataSaving(false)
+    setDataSaving(false); setConfirmSeed(false)
   }
 
   const handleClearDemo = async () => {
-    if (!confirmClearDemo) { setConfirmClearDemo(true); setConfirmClearAll(false); return }
+    if (!confirmClearDemo) { resetConfirms(); setConfirmClearDemo(true); return }
     setDataSaving(true); setDataMessage(null); setError(null)
     try {
       await apiFetch(`/api/users/${user.id}/clear-demo`, { method: 'POST' })
@@ -87,7 +79,7 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
   }
 
   const handleClearAll = async () => {
-    if (!confirmClearAll) { setConfirmClearAll(true); setConfirmClearDemo(false); return }
+    if (!confirmClearAll) { resetConfirms(); setConfirmClearAll(true); return }
     setDataSaving(true); setDataMessage(null); setError(null)
     try {
       await apiFetch(`/api/users/${user.id}/clear-all`, { method: 'POST' })
@@ -181,8 +173,8 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
             <div className="bg-gray-50 rounded-xl px-4 py-1">
               <InfoRow label="User ID" value={user.id} />
               <InfoRow label="Email" value={user.email} />
-              <InfoRow label="Created" value={fmtDate(user.created_at)} />
-              <InfoRow label="Last sign in" value={fmtDate(user.last_sign_in_at)} />
+              <InfoRow label="Created" value={fmtDateTime(user.created_at)} />
+              <InfoRow label="Last sign in" value={fmtDateTime(user.last_sign_in_at)} />
             </div>
           </div>
 
@@ -190,14 +182,14 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Subscription</p>
-              {sub && statusBadge(sub.subscription_status)}
+              {sub && <StatusBadge status={sub.subscription_status} size="md" />}
             </div>
             <div className="bg-gray-50 rounded-xl px-4 py-1">
               {sub ? (
                 <>
                   <InfoRow label="Status" value={sub.subscription_status} />
-                  <InfoRow label="Trial ends" value={fmtDate(sub.trial_ends_at)} />
-                  <InfoRow label="Period ends" value={fmtDate(sub.current_period_ends_at)} />
+                  <InfoRow label="Trial ends" value={fmtDateTime(sub.trial_ends_at)} />
+                  <InfoRow label="Period ends" value={fmtDateTime(sub.current_period_ends_at)} />
                   <InfoRow label="Stripe customer" value={sub.stripe_customer_id} />
                   <InfoRow label="Stripe sub" value={sub.stripe_subscription_id} />
                 </>
@@ -247,10 +239,14 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
               <button
                 onClick={handleSeed}
                 disabled={dataSaving}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 text-sm text-blue-700 hover:bg-blue-50 transition-colors w-full disabled:opacity-50"
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-colors w-full disabled:opacity-50 border ${
+                  confirmSeed
+                    ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'
+                    : 'border-blue-200 text-blue-700 hover:bg-blue-50'
+                }`}
               >
                 <Sparkles className="w-4 h-4" />
-                {dataSaving && !confirmClearDemo && !confirmClearAll ? 'Seeding…' : 'Seed demo data'}
+                {dataSaving && confirmSeed ? 'Seeding…' : confirmSeed ? 'Click again to confirm' : 'Seed demo data'}
               </button>
 
               <button

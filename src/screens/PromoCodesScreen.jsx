@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { apiFetch } from '../lib/api'
+import { fmtDate } from '../lib/format'
+import Spinner from '../components/Spinner'
+import LoadError from '../components/LoadError'
 import { RefreshCw, Plus, Search } from 'lucide-react'
-
-const fmtDate = (iso) => {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
 
 const ACTION_LABELS = {
   comp_access:          'Comp access',
@@ -159,17 +157,8 @@ export default function PromoCodesScreen() {
     setLoading(false)
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-sm text-red-700">Error: {error}</div>
-  }
+  if (loading) return <Spinner />
+  if (error) return <LoadError message={`Error: ${error}`} onRetry={fetchData} />
 
   return (
     <div>

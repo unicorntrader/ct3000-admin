@@ -1,16 +1,8 @@
 const crypto = require('crypto')
 const { verifyAdmin } = require('../_lib/auth')
 const { supabaseAdmin } = require('../_lib/supabase-admin')
-
-const INVITE_BASE = 'https://ct3000-react.vercel.app/signup?invite='
-
-function readJsonBody(req) {
-  if (req.body && typeof req.body === 'object') return req.body
-  if (typeof req.body === 'string') {
-    try { return JSON.parse(req.body) } catch { return {} }
-  }
-  return {}
-}
+const { readJsonBody } = require('../_lib/req')
+const { INVITE_BASE_URL } = require('../_lib/constants')
 
 // POST /api/philoinvestor/grant
 // Body: { email, ghostMemberId, periodEnd? }
@@ -28,8 +20,9 @@ module.exports = async function handler(req, res) {
   const { email, ghostMemberId, periodEnd } = readJsonBody(req)
   if (!email) return res.status(400).json({ error: 'email required' })
 
-  // Look up user by email
-  const { data: { users } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+  // Look up user by email. Supabase doesn't expose getUserByEmail directly,
+  // so we list and filter. perPage cap matches the other endpoints.
+  const { data: { users } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 5000 })
   const supaUser = (users || []).find(u => u.email?.toLowerCase() === email.toLowerCase())
 
   if (supaUser) {
@@ -70,5 +63,5 @@ module.exports = async function handler(req, res) {
     .insert({ email, token, is_comped: true })
   if (inviteErr) return res.status(500).json({ error: inviteErr.message })
 
-  return res.status(200).json({ status: 'invited', inviteUrl: INVITE_BASE + token })
+  return res.status(200).json({ status: 'invited', inviteUrl: INVITE_BASE_URL + token })
 }

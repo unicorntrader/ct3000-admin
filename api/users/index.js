@@ -8,7 +8,9 @@ module.exports = async function handler(req, res) {
   if (authError) return res.status(authStatus).json({ error: authError })
 
   try {
-    const { data: { users }, error: usersErr } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+    // perPage caps results — silently truncates above this. Bump if active
+    // user count grows past the cap; long-term, paginate.
+    const { data: { users }, error: usersErr } = await supabaseAdmin.auth.admin.listUsers({ perPage: 5000 })
     if (usersErr) throw usersErr
 
     const { data: subs, error: subsErr } = await supabaseAdmin

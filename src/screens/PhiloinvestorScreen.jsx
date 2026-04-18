@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { apiFetch } from '../lib/api'
+import { fmtDate } from '../lib/format'
+import { INVITE_BASE_URL } from '../lib/constants'
+import Spinner from '../components/Spinner'
+import LoadError from '../components/LoadError'
 import { RefreshCw, Gift, CheckCircle, Copy } from 'lucide-react'
-
-const INVITE_BASE = 'https://ct3000-react.vercel.app/signup?invite='
-
-const fmtDate = (iso) => {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
 
 export default function PhiloinvestorScreen() {
   const [members, setMembers] = useState([])
@@ -48,7 +45,7 @@ export default function PhiloinvestorScreen() {
       for (const s of (subscriptions || [])) sMap[s.user_id] = s
 
       const inviteMap = {}
-      for (const inv of (invites || [])) inviteMap[inv.email.toLowerCase()] = INVITE_BASE + inv.token
+      for (const inv of (invites || [])) inviteMap[inv.email.toLowerCase()] = INVITE_BASE_URL + inv.token
 
       setMembers(ghostMembers || [])
       setSupabaseUserMap(emailMap)
@@ -96,17 +93,8 @@ export default function PhiloinvestorScreen() {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-sm text-red-700">Error: {error}</div>
-  }
+  if (loading) return <Spinner />
+  if (error) return <LoadError message={`Error: ${error}`} onRetry={fetchData} />
 
   const filtered = members.filter(m => statusFilter === 'all' || m.status === statusFilter)
 

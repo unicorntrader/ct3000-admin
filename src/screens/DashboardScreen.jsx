@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { apiFetch } from '../lib/api'
+import { fmtTime } from '../lib/format'
+import { MRR_PER_USER } from '../lib/constants'
+import Spinner from '../components/Spinner'
+import LoadError from '../components/LoadError'
 import { Users, TrendingUp, XCircle, Clock, DollarSign, RefreshCw } from 'lucide-react'
-
-const MRR_PER_USER = 30
-
-const fmtTime = (iso) => {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
 
 function StatCard({ label, value, sub, Icon, color = 'text-gray-900', iconBg = 'bg-gray-100', iconColor = 'text-gray-500' }) {
   return (
@@ -45,21 +42,8 @@ export default function DashboardScreen() {
     setLoading(false)
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-sm text-red-700">
-        Failed to load dashboard: {error}
-      </div>
-    )
-  }
+  if (loading) return <Spinner />
+  if (error) return <LoadError message={`Failed to load dashboard: ${error}`} onRetry={fetchData} />
 
   return (
     <div>

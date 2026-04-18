@@ -1,14 +1,7 @@
 const crypto = require('crypto')
 const { verifyAdmin } = require('./_lib/auth')
 const { supabaseAdmin } = require('./_lib/supabase-admin')
-
-function readJsonBody(req) {
-  if (req.body && typeof req.body === 'object') return req.body
-  if (typeof req.body === 'string') {
-    try { return JSON.parse(req.body) } catch { return {} }
-  }
-  return {}
-}
+const { readJsonBody } = require('./_lib/req')
 
 module.exports = async function handler(req, res) {
   const { admin, error: authError, status: authStatus } = await verifyAdmin(req)

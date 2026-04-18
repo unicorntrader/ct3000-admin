@@ -14,6 +14,9 @@ const verifyClient = createClient(url, publishable, {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
 })
 
+// Parsed at module load (Vercel reuses the warm function instance across
+// requests). Updating ADMIN_EMAILS in Vercel requires a redeploy to take
+// effect — env var changes don't hot-reload.
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
   .split(',')
   .map(e => e.trim().toLowerCase())

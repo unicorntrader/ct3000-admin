@@ -1,28 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { apiFetch } from '../lib/api'
+import { fmtDate } from '../lib/format'
+import { MRR_PER_USER } from '../lib/constants'
+import StatusBadge from '../components/StatusBadge'
+import Spinner from '../components/Spinner'
+import LoadError from '../components/LoadError'
 import { RefreshCw, ExternalLink } from 'lucide-react'
 
+// Drops 'none' compared to UsersScreen because every row in user_subscriptions
+// has a status by definition. Keep these intentionally divergent.
 const STATUS_FILTERS = ['all', 'active', 'trialing', 'canceled', 'pending']
-const MRR_PER_USER = 30
-
-const statusBadge = (status) => {
-  const styles = {
-    active:   'bg-green-50 text-green-700',
-    trialing: 'bg-amber-50 text-amber-700',
-    canceled: 'bg-red-50 text-red-600',
-    pending:  'bg-gray-100 text-gray-500',
-  }
-  return (
-    <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${styles[status] || 'bg-gray-100 text-gray-400'}`}>
-      {status || '—'}
-    </span>
-  )
-}
-
-const fmtDate = (iso) => {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
 
 export default function SubscriptionsScreen() {
   const [subs, setSubs] = useState([])
@@ -64,17 +51,8 @@ export default function SubscriptionsScreen() {
   const canceled = subs.filter(s => s.subscription_status === 'canceled').length
   const mrr = active * MRR_PER_USER
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-sm text-red-700">Error: {error}</div>
-  }
+  if (loading) return <Spinner />
+  if (error) return <LoadError message={`Error: ${error}`} onRetry={fetchData} />
 
   return (
     <div>
@@ -134,7 +112,7 @@ export default function SubscriptionsScreen() {
             ) : filtered.map(s => (
               <tr key={s.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 text-sm font-medium text-gray-900">{emailMap[s.user_id] || s.user_id}</td>
-                <td className="px-4 py-3">{statusBadge(s.subscription_status)}</td>
+                <td className="px-4 py-3"><StatusBadge status={s.subscription_status} /></td>
                 <td className="px-4 py-3">
                   {s.stripe_customer_id ? (
                     <a
