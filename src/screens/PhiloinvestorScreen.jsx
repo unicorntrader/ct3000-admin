@@ -171,7 +171,7 @@ export default function PhiloinvestorScreen() {
                     {granted ? (
                       <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-green-50 text-green-700">active</span>
                     ) : inviteUrl ? (
-                      <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-amber-50 text-amber-700">invite sent</span>
+                      <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-amber-50 text-amber-700">link ready</span>
                     ) : supaUser ? (
                       <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-gray-100 text-gray-500">
                         {sub?.subscription_status || 'no sub'}
@@ -189,7 +189,7 @@ export default function PhiloinvestorScreen() {
                       </span>
                     ) : inviteUrl ? (
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-amber-600 font-medium">Invite sent ✓</span>
+                        <span className="text-xs text-amber-600 font-medium">Link ready — send manually</span>
                         <button
                           onClick={() => copyLink(m.id, inviteUrl)}
                           className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
