@@ -1,4 +1,10 @@
-import { supabaseAdmin as supabase } from './supabaseClient'
+import { supabase } from './supabaseClient'
+
+// NOTE: This file is being migrated to /api/* serverless routes (batch 2).
+// Until then, seedDemoData / clearDemoData / clearAllUserData will fail at
+// runtime — they were written assuming a service-role client that's no
+// longer available in the browser. getDataCounts has been moved to
+// /api/users/[id]/data-counts; UserDetailPanel calls that directly.
 
 // Admin-facing demo data utilities. Runs client-side using the service role
 // key, which this admin panel already has configured.

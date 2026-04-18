@@ -3,7 +3,7 @@ const { createClient } = require('@supabase/supabase-js')
 
 const supabase = createClient(
   process.env.REACT_APP_SUPABASE_URL,
-  process.env.REACT_APP_SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_SECRET_KEY
 )
 
 function verifySignature(rawBody, header, secret) {

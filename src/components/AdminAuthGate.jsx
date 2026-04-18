@@ -1,15 +1,10 @@
 import React, { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
-const ADMIN_EMAILS = (process.env.REACT_APP_ADMIN_EMAILS || '')
-  .split(',')
-  .map(e => e.trim().toLowerCase())
-  .filter(Boolean)
-
-export function isAdminEmail(email) {
-  return ADMIN_EMAILS.includes(email?.toLowerCase())
-}
-
+// Login gate. The real admin allowlist is enforced server-side by /api/*
+// routes (see api/_lib/auth.js + ADMIN_EMAILS env var). This gate only
+// gates the UI shell — anyone who can sign in to the Supabase project will
+// reach the shell, but every /api call from a non-admin returns 403.
 export default function AdminAuthGate({ children, session, onSession }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -26,19 +21,11 @@ export default function AdminAuthGate({ children, session, onSession }) {
       setLoading(false)
       return
     }
-    if (!isAdminEmail(data.user?.email)) {
-      await supabase.auth.signOut()
-      setError('Access denied. This account is not authorised as an admin.')
-      setLoading(false)
-      return
-    }
     onSession(data.session)
     setLoading(false)
   }
 
-  if (session && isAdminEmail(session.user?.email)) {
-    return children
-  }
+  if (session) return children
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">

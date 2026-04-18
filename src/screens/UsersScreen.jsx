@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { apiFetch } from '../lib/api'
 import { Search, RefreshCw, ExternalLink, Copy } from 'lucide-react'
 import UserDetailPanel from './UserDetailPanel'
 
@@ -45,28 +45,17 @@ export default function UsersScreen() {
     setLoading(true)
     setError(null)
     try {
-      const { data: { users: authUsers }, error: usersErr } = await supabase.auth.admin.listUsers({ perPage: 1000 })
-      if (usersErr) throw usersErr
-
-      const { data: subs, error: subsErr } = await supabase.from('user_subscriptions').select('*')
-      if (subsErr) throw subsErr
-
-      const { data: planRows } = await supabase.from('planned_trades').select('user_id')
-      const pMap = {}
-      for (const row of (planRows || [])) pMap[row.user_id] = (pMap[row.user_id] || 0) + 1
-      setPlansMap(pMap)
-
-      const { data: pendingInvites } = await supabase
-        .from('invited_users')
-        .select('id, email, token, invited_at')
-        .is('redeemed_at', null)
-        .order('invited_at', { ascending: false })
-      setInvites(pendingInvites || [])
+      const [usersRes, invitesRes] = await Promise.all([
+        apiFetch('/api/users'),
+        apiFetch('/api/invites'),
+      ])
 
       const map = {}
-      for (const s of (subs || [])) map[s.user_id] = s
+      for (const s of (usersRes.subscriptions || [])) map[s.user_id] = s
       setSubsMap(map)
-      setUsers(authUsers || [])
+      setPlansMap(usersRes.planCounts || {})
+      setUsers(usersRes.users || [])
+      setInvites(invitesRes.invites || [])
     } catch (err) {
       setError(err.message)
     }

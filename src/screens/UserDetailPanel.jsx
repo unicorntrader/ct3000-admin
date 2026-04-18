@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { apiFetch } from '../lib/api'
 import { X, ExternalLink, Gift, Clock, XCircle, Trash2, Database, Sparkles, Eraser } from 'lucide-react'
-import { getDataCounts, seedDemoData, clearDemoData, clearAllUserData } from '../lib/demoData'
+import { seedDemoData, clearDemoData, clearAllUserData } from '../lib/demoData'
 
 const fmtDate = (iso) => {
   if (!iso) return '—'
@@ -51,8 +52,12 @@ export default function UserDetailPanel({ user, sub, onClose, onUpdated }) {
   const refreshCounts = useCallback(async () => {
     if (!user?.id) return
     setCountsLoading(true)
-    const c = await getDataCounts(user.id)
-    setCounts(c)
+    try {
+      const c = await apiFetch(`/api/users/${user.id}/data-counts`)
+      setCounts(c)
+    } catch (err) {
+      setError(`Failed to load counts: ${err.message}`)
+    }
     setCountsLoading(false)
   }, [user?.id])
 

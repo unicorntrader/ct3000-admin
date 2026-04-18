@@ -13,7 +13,7 @@ function createGhostJWT(adminKey) {
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
-  const adminKey = process.env.REACT_APP_GHOST_ADMIN_KEY
+  const adminKey = process.env.GHOST_ADMIN_KEY
   if (!adminKey) return res.status(500).json({ error: 'GHOST_ADMIN_KEY not configured' })
 
   try {
