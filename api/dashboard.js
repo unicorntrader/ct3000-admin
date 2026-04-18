@@ -23,9 +23,16 @@ module.exports = async function handler(req, res) {
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000
     const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000
 
-    const totalUsers = users.length
-    const newLast7 = users.filter(u => new Date(u.created_at).getTime() >= sevenDaysAgo).length
-    const newLast30 = users.filter(u => new Date(u.created_at).getTime() >= thirtyDaysAgo).length
+    // Anonymous (demo) users have no email — Supabase anon auth flow. They
+    // shouldn't count toward "real" user totals or pollute the activity feed,
+    // but we expose the count separately so we can see if demo flow is active.
+    const realUsers = users.filter(u => u.email)
+    const anonUsers = users.filter(u => !u.email)
+
+    const totalUsers = realUsers.length
+    const totalAnon = anonUsers.length
+    const newLast7 = realUsers.filter(u => new Date(u.created_at).getTime() >= sevenDaysAgo).length
+    const newLast30 = realUsers.filter(u => new Date(u.created_at).getTime() >= thirtyDaysAgo).length
 
     const active = subs.filter(s => s.subscription_status === 'active').length
     const trialing = subs.filter(s => s.subscription_status === 'trialing').length
@@ -35,9 +42,10 @@ module.exports = async function handler(req, res) {
     const converted = active + canceled
     const conversionRate = converted > 0 ? Math.round((active / converted) * 100) : null
 
-    const stats = { totalUsers, newLast7, newLast30, active, trialing, canceled, mrr, conversionRate }
+    const stats = { totalUsers, totalAnon, newLast7, newLast30, active, trialing, canceled, mrr, conversionRate }
 
-    const recentSignups = [...users]
+    // Activity feed: real users only — anon "signups" are noise here.
+    const recentSignups = [...realUsers]
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .slice(0, 5)
       .map(u => ({ type: 'signup', email: u.email, time: u.created_at }))

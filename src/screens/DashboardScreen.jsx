@@ -4,7 +4,7 @@ import { fmtTime } from '../lib/format'
 import { MRR_PER_USER } from '../lib/constants'
 import Spinner from '../components/Spinner'
 import LoadError from '../components/LoadError'
-import { Users, TrendingUp, XCircle, Clock, DollarSign, RefreshCw } from 'lucide-react'
+import { Users, TrendingUp, XCircle, Clock, DollarSign, RefreshCw, Sparkles } from 'lucide-react'
 
 function StatCard({ label, value, sub, Icon, color = 'text-gray-900', iconBg = 'bg-gray-100', iconColor = 'text-gray-500' }) {
   return (
@@ -55,9 +55,10 @@ export default function DashboardScreen() {
         </button>
       </div>
 
-      {/* KPI grid */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total users" value={stats.totalUsers} sub={`+${stats.newLast7} this week`} Icon={Users} iconBg="bg-blue-50" iconColor="text-blue-600" />
+      {/* KPI grid — top row covers user/sub state, bottom row covers growth */}
+      <div className="grid grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+        <StatCard label="Users" value={stats.totalUsers} sub={`+${stats.newLast7} this week`} Icon={Users} iconBg="bg-blue-50" iconColor="text-blue-600" />
+        <StatCard label="Demo" value={stats.totalAnon} sub="Anon sign-ins" Icon={Sparkles} iconBg="bg-purple-50" iconColor="text-purple-500" />
         <StatCard label="Active subscribers" value={stats.active} sub={`MRR $${(stats.mrr).toLocaleString()}`} Icon={TrendingUp} color="text-green-600" iconBg="bg-green-50" iconColor="text-green-600" />
         <StatCard label="Trialing" value={stats.trialing} sub="In free trial" Icon={Clock} iconBg="bg-amber-50" iconColor="text-amber-500" />
         <StatCard label="Churned" value={stats.canceled} sub={stats.conversionRate != null ? `${stats.conversionRate}% trial conversion` : '—'} Icon={XCircle} color="text-red-500" iconBg="bg-red-50" iconColor="text-red-400" />
